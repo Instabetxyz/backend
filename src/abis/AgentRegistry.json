@@ -1,0 +1,55 @@
+[
+  {
+    "type": "function",
+    "name": "registerAgent",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "agentAddress", "type": "address" },
+      { "name": "inftId",       "type": "uint256" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setFollow",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "agentAddress",  "type": "address" },
+      { "name": "mode",          "type": "uint8"   },
+      { "name": "copyFraction",  "type": "uint256" },
+      { "name": "maxBetWei",     "type": "uint256" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "getFollow",
+    "stateMutability": "view",
+    "inputs": [
+      { "name": "follower",     "type": "address" },
+      { "name": "agentAddress", "type": "address" }
+    ],
+    "outputs": [
+      { "name": "mode",         "type": "uint8"   },
+      { "name": "copyFraction", "type": "uint256" },
+      { "name": "maxBetWei",    "type": "uint256" }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "AgentRegistered",
+    "inputs": [
+      { "name": "agentAddress", "type": "address", "indexed": true  },
+      { "name": "inftId",       "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "FollowSet",
+    "inputs": [
+      { "name": "follower",     "type": "address", "indexed": true  },
+      { "name": "agentAddress", "type": "address", "indexed": true  },
+      { "name": "mode",         "type": "uint8",   "indexed": false }
+    ]
+  }
+]

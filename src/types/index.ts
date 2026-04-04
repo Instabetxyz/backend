@@ -45,7 +45,7 @@ export interface UserRow {
 export interface MarketRow {
   id: string;
   stream_id: string;
-  market_address: string;
+  on_chain_market_id: string;   // uint256 from contract, stored as TEXT to avoid overflow
   trio_job_id: string;
   title: string;
   condition: string;
@@ -116,7 +116,6 @@ export interface CreateStreamBody {
 export interface PlaceBetBody {
   side: BetSide;
   amount_wei: string;
-  min_shares?: string;
 }
 
 export interface RegisterAgentBody {

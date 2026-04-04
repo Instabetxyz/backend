@@ -1,5 +1,5 @@
 import PredictionMarketAbi from '../abis/PredictionMarket.json';
-//import AgentRegistryAbi from '../../contracts/abis/AgentRegistry.json';
+import AgentRegistryAbi from '../abis/AgentRegistry.json';
 import { config } from './index';
 
 export const contracts = {
@@ -7,8 +7,8 @@ export const contracts = {
     address: config.chain.contracts.predictionMarket,
     abi: PredictionMarketAbi,
   },
-/*   agentRegistry: {
+  agentRegistry: {
     address: config.chain.contracts.agentRegistry,
     abi: AgentRegistryAbi,
-  }, */
+  },
 } as const;
