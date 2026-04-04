@@ -8,6 +8,7 @@ import streamsRouter from './routes/streams';
 import marketsRouter from './routes/markets';
 import agentsRouter from './routes/agents';
 import webhooksRouter from './routes/webhooks';
+import apiKeysRouter from './routes/api-keys';
 
 export function createApp(): express.Application {
   const app = express();
@@ -28,6 +29,7 @@ export function createApp(): express.Application {
   app.use('/v1/markets', marketsRouter);
   app.use('/v1/agents', agentsRouter);
   app.use('/v1/webhook', webhooksRouter);
+  app.use('/v1/api-key', apiKeysRouter);
 
   // ── Global error handler (must be last) ─────────────────
   app.use(globalErrorHandler);

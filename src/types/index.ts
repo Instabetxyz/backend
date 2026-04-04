@@ -132,6 +132,10 @@ export interface FollowAgentBody {
   max_bet_wei?: string;
 }
 
+export interface CreateApiKeyBody {
+  wallet_address: string;
+}
+
 export interface ListMarketsQuery {
   status?: 'active' | 'resolved' | 'all';
   created_by?: string;

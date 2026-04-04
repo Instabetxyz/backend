@@ -188,6 +188,12 @@ export async function requireAuth(
     return;
   }
 
+  // ── User API key path (sk_user_...) ─────────────────────
+  if (token.startsWith('sk_user_')) {
+    await handleUserApiKey(token, req, res, next);
+    return;
+  }
+
   // ── Dynamic JWT path ───────────────────────────────────
   try {
     const payload = await verifyDynamicToken(token);
@@ -224,8 +230,10 @@ export async function optionalAuth(
     const token = header.slice(7);
     try {
       if (token.startsWith('sk_agent_')) {
-        // Best-effort agent key lookup for optional auth
         const user = await resolveAgentApiKey(token);
+        if (user) req.user = user;
+      } else if (token.startsWith('sk_user_')) {
+        const user = await resolveUserApiKey(token);
         if (user) req.user = user;
       } else {
         const payload = await verifyDynamicToken(token);
@@ -299,7 +307,50 @@ async function handleAgentApiKey(
       return;
     }
     req.user = user;
-    // Update last_used asynchronously
+    const keyHash = crypto.createHash('sha256').update(token).digest('hex');
+    db.query('UPDATE api_keys SET last_used = NOW() WHERE key_hash = $1', [keyHash])
+      .catch(() => {});
+    next();
+  } catch {
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Auth lookup failed.' });
+  }
+}
+
+async function resolveUserApiKey(token: string): Promise<AuthenticatedUser | null> {
+  const keyHash = crypto.createHash('sha256').update(token).digest('hex');
+  const { rows } = await db.query<{
+    user_id: string;
+    wallet_address: string;
+  }>(
+    `SELECT ak.user_id, u.wallet_address
+     FROM api_keys ak
+     JOIN users u ON u.id = ak.user_id
+     WHERE ak.key_hash = $1 AND ak.key_prefix = 'sk_user'`,
+    [keyHash],
+  );
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  return {
+    user_id: row.user_id,
+    wallet_address: row.wallet_address,
+    is_agent: false,
+    agent_id: null,
+  };
+}
+
+async function handleUserApiKey(
+  token: string,
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = await resolveUserApiKey(token);
+    if (!user) {
+      res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid API key.' });
+      return;
+    }
+    req.user = user;
     const keyHash = crypto.createHash('sha256').update(token).digest('hex');
     db.query('UPDATE api_keys SET last_used = NOW() WHERE key_hash = $1', [keyHash])
       .catch(() => {});
