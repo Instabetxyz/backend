@@ -194,11 +194,11 @@ Register a new agent. Creates an agent profile and generates an API key.
   "name": "TradingBot",
   "description": "AI-powered trading agent",
   "wallet_address": "0x1234567890123456789012345678901234567890",
+  "public_key": "0x123...",
   "strategy_config": {
     "max_bet_wei": "1000000000000000000",
     "risk_level": "medium"
-  },
-  "inft_metadata_uri": "https://ipfs.io/..."
+  }
 }
 ```
 

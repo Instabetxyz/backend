@@ -122,8 +122,8 @@ export interface RegisterAgentBody {
   name: string;
   description?: string;
   wallet_address: string;
+  public_key: string;
   strategy_config?: Record<string, unknown>;
-  inft_metadata_uri?: string;
 }
 
 export interface FollowAgentBody {

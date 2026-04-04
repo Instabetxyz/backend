@@ -1,6 +1,9 @@
 import { ethers, Contract, TransactionReceipt } from 'ethers';
 import { config } from '../config';
 import { contracts } from '../config/contracts';
+import * as encryption from "./encryption";
+import * as storage from "./storage";
+const fs = require('fs').promises;
 
 // ─────────────────────────────────────────────────────────
 // Provider & signer (module-level singletons)
@@ -12,6 +15,8 @@ const provider = new ethers.JsonRpcProvider(config.chain.rpcUrl, {
 });
 
 const signer = new ethers.Wallet(config.chain.deployerPrivateKey, provider);
+
+const keyPath = 'backendkey'
 
 // ─────────────────────────────────────────────────────────
 // Contract instances — singleton PredictionMarket
@@ -35,6 +40,12 @@ const agentRegistry = new Contract(
   contracts.agentRegistry.address,
   contracts.agentRegistry.abi,
   signer,
+);
+
+const iNft = new Contract(
+  contracts.inft.address,
+  contracts.inft.abi,
+  signer
 );
 
 // ─────────────────────────────────────────────────────────
@@ -83,18 +94,18 @@ export interface OnChainUserPosition {
 export async function getMarket(marketId: bigint): Promise<OnChainMarket> {
   const m = await predictionMarketRead.getMarket(marketId);
   return {
-    marketId:      BigInt(m.marketId),
-    streamUrl:     m.streamUrl as string,
-    question:      m.question as string,
-    creator:       m.creator as string,
-    yesAmount:     BigInt(m.yesAmount),
-    noAmount:      BigInt(m.noAmount),
-    totalAmount:   BigInt(m.totalAmount),
-    feeAmount:     BigInt(m.feeAmount),
-    resolved:      Boolean(m.resolved),
-    cancelled:     Boolean(m.cancelled),
+    marketId: BigInt(m.marketId),
+    streamUrl: m.streamUrl as string,
+    question: m.question as string,
+    creator: m.creator as string,
+    yesAmount: BigInt(m.yesAmount),
+    noAmount: BigInt(m.noAmount),
+    totalAmount: BigInt(m.totalAmount),
+    feeAmount: BigInt(m.feeAmount),
+    resolved: Boolean(m.resolved),
+    cancelled: Boolean(m.cancelled),
     winningOutcome: Number(m.winningOutcome) as OutcomeValue,
-    createdAt:     BigInt(m.createdAt),
+    createdAt: BigInt(m.createdAt),
   };
 }
 
@@ -105,8 +116,8 @@ export async function getUserPosition(
   const p = await predictionMarketRead.getUserPosition(marketId, userAddress);
   return {
     yesAmount: BigInt(p.yesAmount),
-    noAmount:  BigInt(p.noAmount),
-    claimed:   Boolean(p.claimed),
+    noAmount: BigInt(p.noAmount),
+    claimed: Boolean(p.claimed),
   };
 }
 
@@ -221,7 +232,7 @@ export async function cancelMarketOnChain(onChainMarketId: bigint): Promise<stri
 }
 
 // ─────────────────────────────────────────────────────────
-// AgentRegistry — unchanged
+// AgentRegistry
 // ─────────────────────────────────────────────────────────
 
 export async function registerAgentOnChain(opts: {
@@ -254,6 +265,62 @@ export async function setFollowOnChain(opts: {
 }
 
 // ─────────────────────────────────────────────────────────
+// INFT
+// ─────────────────────────────────────────────────────────
+
+export async function createAIAgent(ownerPublicKey: string, recipient: string) {
+  const metadata = {
+    name: "InstaBet AI Agent",
+    description: "An AI agent that autonomously bets on live-stream prediction markets",
+    provider: "0G Compute",
+    version: "1.0"
+  }
+
+  let key;
+  const keyExists = await checkFileExists(keyPath);
+  if (!keyExists) {
+    key = await encryption.loadKey(keyPath)
+  } else {
+    key = encryption.generateKey();
+    try {
+      await encryption.saveKey(key, keyPath);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  const encryptedData = await encryption.encrypt(
+    JSON.stringify(metadata),
+    key
+  );
+
+  const storageResult = await storage.uploadData(encryptedData);
+
+  const sealedKey = await encryption.sealKey(key, ownerPublicKey);
+
+  const metadataHash = ethers.keccak256(
+    ethers.toUtf8Bytes(JSON.stringify(metadata))
+  );
+
+  const tx = await iNft.mint(
+    recipient,
+    storageResult.rootHash,
+    metadataHash
+  );
+
+  const receipt = await tx.wait();
+
+  const tokenId = receipt.events[0].args.tokenId;
+
+  return {
+    tokenId,
+    sealedKey,
+    rootHash: storageResult.rootHash,
+    transactionHash: receipt.transactionHash
+  };
+}
+
+// ─────────────────────────────────────────────────────────
 // Utilities
 // ─────────────────────────────────────────────────────────
 
@@ -269,9 +336,18 @@ export function computeOdds(
   const total = yesAmount + noAmount;
   if (total === BigInt(0)) return { yes: 0.5, no: 0.5 };
   return {
-    yes: Number(noAmount)  / Number(total),
-    no:  Number(yesAmount) / Number(total),
+    yes: Number(noAmount) / Number(total),
+    no: Number(yesAmount) / Number(total),
   };
+}
+
+async function checkFileExists(filePath: string) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export { provider, signer };

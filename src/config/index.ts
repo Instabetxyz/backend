@@ -34,6 +34,7 @@ export const config = {
     contracts: {
       predictionMarket: required('PREDICTION_MARKET_ADDRESS'),
       agentRegistry: required('AGENT_REGISTRY_ADDRESS'),
+      iNft: required('INFT_ADDRESS')
     },
   },
 
@@ -50,6 +51,7 @@ export const config = {
 
   og: {
     storageRpc: required('OG_STORAGE_RPC'),
+    storageIndexerRpc: required('OG_STORAGE_INDEXER_RPC'),
     computeEndpoint: required('OG_COMPUTE_ENDPOINT'),
   },
 

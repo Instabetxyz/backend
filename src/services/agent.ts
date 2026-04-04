@@ -60,7 +60,9 @@ export async function registerAgent(
 ): Promise<RegisterAgentResult> {
   // 1. Register on-chain via AgentRegistry
   //    For hackathon simplicity we use token ID = timestamp-based bigint
-  const inftTokenId = BigInt(Date.now());
+  const createResp = await chainService.createAIAgent(body.public_key, body.wallet_address);
+  
+  const inftTokenId = BigInt(createResp.tokenId)
   const { txHash: registryTxHash } = await chainService.registerAgentOnChain({
     agentWalletAddress: body.wallet_address,
     inftTokenId,
@@ -70,8 +72,7 @@ export async function registerAgent(
   //    here we just record the URI)
   const agentIdPlaceholder = `agent_${crypto.randomBytes(4).toString('hex')}`;
   const metadataUri =
-    body.inft_metadata_uri ??
-    `https://storage.0g.ai/meta/${agentIdPlaceholder}.json`;
+    createResp.rootHash;
   const ogStorageKey = `agent_memory:${agentIdPlaceholder}`;
 
   // 3. Persist agent + user row in DB (transaction)
