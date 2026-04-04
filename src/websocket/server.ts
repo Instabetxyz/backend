@@ -1,8 +1,7 @@
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { URL } from 'url';
-import jwt from 'jsonwebtoken';
-import { config } from '../config';
+import { verifyDynamicToken } from '../middleware/auth';
 import type { WsClientMessage, WsEvent } from '../types';
 
 // ─────────────────────────────────────────────────────────
@@ -27,10 +26,10 @@ const allClients = new Set<WsClient>();
 export function createWsServer(server: http.Server): WebSocketServer {
   const wss = new WebSocketServer({ server, path: '/v1/stream/websocket' });
 
-  wss.on('connection', (socket, req) => {
+  wss.on('connection', async (socket, req) => {
     const client: WsClient = {
       socket,
-      userId: parseUserIdFromRequest(req),
+      userId: await parseUserIdFromRequest(req),
       subscribedMarkets: new Set(),
     };
     allClients.add(client);
@@ -119,13 +118,13 @@ function sendToClient(client: WsClient, data: object): void {
   }
 }
 
-function parseUserIdFromRequest(req: http.IncomingMessage): string | null {
+async function parseUserIdFromRequest(req: http.IncomingMessage): Promise<string | null> {
   try {
     const url = new URL(req.url ?? '', 'ws://localhost');
     const token = url.searchParams.get('token');
     if (!token) return null;
-    const payload = jwt.verify(token, config.auth.jwtSecret) as { user_id: string };
-    return payload.user_id;
+    const payload = await verifyDynamicToken(token);
+    return payload.sub; // Dynamic user ID
   } catch {
     return null;
   }

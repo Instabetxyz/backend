@@ -4,12 +4,12 @@
 
 Real-time WebSocket endpoint for subscribing to market events.
 
-**Authentication:** Optional (JWT in query param for user identification)
+**Authentication:** Optional (Dynamic JWT in query param for user identification)
 
 ### Connection URL
 
 ```
-ws://localhost:3000/v1/stream/websocket?token=<jwt_token>
+ws://localhost:3000/v1/stream/websocket?token=<dynamic_jwt_token>
 ```
 
 The `token` query parameter is optional. If provided, the connection will be associated with the user for personalized features.

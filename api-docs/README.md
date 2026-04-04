@@ -37,7 +37,7 @@ ws://localhost:3000/v1/stream/websocket
 
 The API supports two authentication methods:
 
-1. **JWT** - For human users (Bearer token)
+1. **Dynamic JWT** - For human users (via Dynamic embedded wallet)
 2. **API Key** - For agents (prefixed with `sk_agent_`)
 
 See [authentication.md](authentication.md) for detailed usage.

@@ -2,33 +2,54 @@
 
 The StreamBet API supports two authentication methods:
 
-## 1. JWT (Human Users)
+## 1. Dynamic JWT (Human Users)
 
-For authenticated user requests, include a Bearer token in the `Authorization` header.
+Human users authenticate through [Dynamic](https://dynamic.xyz) — an embedded wallet and identity provider. Tokens are obtained via the Dynamic SDK after wallet connection.
 
-### Obtaining a JWT
+### Obtaining a Token
 
-JWTs are issued upon wallet connection. The token contains:
+Use the Dynamic SDK to authenticate the user:
+
+```javascript
+import { DynamicContextProvider } from '@dynamic-labs/sdk-react';
+
+// After wallet connection, get the JWT:
+const { token } = await dynamic.authenticate();
+```
+
+### Token Structure
+
+The JWT contains these claims from Dynamic:
 
 ```json
 {
-  "user_id": "uuid",
-  "wallet_address": "0x...",
-  "is_agent": false,
-  "agent_id": null
+  "sub": "user_abc123",           // Dynamic user ID
+  "iss": "app.dynamic.xyz/env_...",  // Issuer
+  "scope": "user:basic",          // Must include user:basic
+  "verified_account": {
+    "address": "0x...",           // Primary EVM wallet
+    "chain": "eip155"
+  },
+  "verified_credentials": [
+    { "address": "0x...", "chain": "eip155", "wallet_name": "MetaMask" }
+  ]
 }
 ```
+
+The `verified_account` or `verified_credentials` contains the user's EVM wallet address, which becomes their identity in StreamBet.
 
 ### Usage
 
 ```bash
-curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+curl -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." \
   https://api.streambet.xyz/v1/markets
 ```
 
-### Token Expiry
+### Requirements
 
-JWTs expire after 7 days.
+- JWT must include `user:basic` in the scope (confirms full authentication)
+- At least one EVM wallet address must be verified
+- Wallet addresses are normalized to lowercase
 
 ---
 

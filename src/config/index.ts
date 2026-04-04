@@ -15,7 +15,8 @@ export const config = {
   port: parseInt(optional('PORT', '3000'), 10),
 
   auth: {
-    jwtSecret: required('JWT_SECRET'),
+    // Dynamic environment ID — from https://app.dynamic.xyz/dashboard/developer/api
+    dynamicEnvId: required('DYNAMIC_ENV_ID'),
   },
 
   db: {
