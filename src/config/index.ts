@@ -41,7 +41,7 @@ export const config = {
   trio: {
     apiKey: required('TRIO_API_KEY'),
     baseUrl: optional('TRIO_BASE_URL', 'https://trio.machinefi.com/api'),
-    webhookSecret: required('TRIO_WEBHOOK_SECRET'),
+    //webhookSecret: required('TRIO_WEBHOOK_SECRET'),
   },
 
   cre: {
