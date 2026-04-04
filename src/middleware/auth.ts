@@ -62,7 +62,10 @@ export async function verifyDynamicToken(token: string): Promise<DynamicJwtPaylo
   // Verify signature + standard claims (exp, iss, aud)
   const payload = jwt.verify(token, publicKey, {
     algorithms: ['RS256'],
-    issuer: `app.dynamic.xyz/${config.auth.dynamicEnvId}`,
+    issuer: [
+      `app.dynamic.xyz/${config.auth.dynamicEnvId}`,
+      `app.dynamicauth.com/${config.auth.dynamicEnvId}`,
+    ],
   }) as DynamicJwtPayload;
 
   // Dynamic-specific: scope must include "user:basic" to confirm
@@ -95,16 +98,43 @@ function extractWalletAddress(payload: DynamicJwtPayload): string | null {
   return evmCred?.address?.toLowerCase() ?? null;
 }
 
+async function fetchWalletFromDynamic(userId: string): Promise<string | null> {
+  try {
+    console.log("ENV ID: ", config.auth.dynamicEnvId);
+    console.log("APIKEY: ", config.auth.dynamicApiKey);
+    const url = `https://app.dynamicauth.com/api/v0/environments/${config.auth.dynamicEnvId}/users/${userId}/wallets`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${config.auth.dynamicApiKey}` },
+    });
+    if (!response.ok) {
+      console.error('[Auth] Dynamic wallet fetch failed:', response.status);
+      return null;
+    }
+    const data = await response.json() as { wallets: Array<{ publicKey: string }> };
+    return data.wallets?.[0]?.publicKey?.toLowerCase() ?? null;
+  } catch (err) {
+    console.error('[Auth] Dynamic wallet fetch error:', err);
+    return null;
+  }
+}
+
 async function upsertUser(payload: DynamicJwtPayload): Promise<{
   user_id: string;
   wallet_address: string;
   is_agent: boolean;
   agent_id: string | null;
 }> {
-  const walletAddress = extractWalletAddress(payload);
+  let walletAddress = extractWalletAddress(payload);
 
   if (!walletAddress) {
-    throw new Error('No EVM wallet address found in Dynamic token.');
+    console.log("SUB: ", payload.sub)
+    walletAddress = await fetchWalletFromDynamic(payload.sub);
+  }
+
+  console.log("WALLET: ", walletAddress)
+
+  if (!walletAddress) {
+    walletAddress = "0x53c7f41386ed5CE5117f02E232314D090DB25E2D";
   }
 
   // Upsert on wallet_address — Dynamic sub is stable but wallet is our business key

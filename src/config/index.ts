@@ -17,6 +17,7 @@ export const config = {
   auth: {
     // Dynamic environment ID — from https://app.dynamic.xyz/dashboard/developer/api
     dynamicEnvId: required('DYNAMIC_ENV_ID'),
+    dynamicApiKey: required('DYNAMIC_API_KEY'),
   },
 
   db: {

@@ -84,6 +84,10 @@ const registerValidation = [
     .isString()
     .matches(/^0x[0-9a-fA-F]{40}$/)
     .withMessage('wallet_address must be a valid EVM address.'),
+  body('public_key')
+    .isString()
+    .matches(/^0x[0-9a-fA-F]{128}$/)
+    .withMessage('public_key must be a valid uncompressed EVM public key (130 chars: 0x + 128 hex).'),
   body('strategy_config').optional().isObject(),
   body('inft_metadata_uri').optional().isURL(),
 ];

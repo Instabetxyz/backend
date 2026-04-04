@@ -227,10 +227,10 @@ export async function listAgents(query: ListAgentsQuery): Promise<{
   const limit = Math.min(parseInt(query.limit ?? '20', 10), 100);
 
   const orderMap: Record<string, string> = {
-    pnl:       'stats.pnl_wei DESC',
-    win_rate:  'stats.win_rate DESC',
-    followers: 'stats.followers_count DESC',
-    volume:    'stats.total_volume_wei DESC',
+    pnl:       'pnl_wei DESC',
+    win_rate:  'win_rate DESC',
+    followers: 'followers_count DESC',
+    volume:    'total_volume_wei DESC',
   };
   const orderClause = orderMap[sortBy] ?? orderMap.pnl;
 

@@ -29,7 +29,7 @@ services:
         condition: service_started
     env_file: .env.docker
     ports:
-      - "3000:3000"
+      - "5174:5174"
 
 volumes:
   postgres_data:

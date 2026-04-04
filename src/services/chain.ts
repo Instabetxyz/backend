@@ -254,7 +254,8 @@ export async function setFollowOnChain(opts: {
   copyFractionBps: bigint;
   maxBetWei: bigint;
 }): Promise<{ txHash: string }> {
-  const tx = await agentRegistry.setFollow(
+  const tx = await agentRegistry.setFollowFor(
+    opts.followerWalletAddress,
     opts.agentWalletAddress,
     opts.mode,
     opts.copyFractionBps,
@@ -278,7 +279,7 @@ export async function createAIAgent(ownerPublicKey: string, recipient: string) {
 
   let key;
   const keyExists = await checkFileExists(keyPath);
-  if (!keyExists) {
+  if (keyExists) {
     key = await encryption.loadKey(keyPath)
   } else {
     key = encryption.generateKey();
@@ -310,7 +311,14 @@ export async function createAIAgent(ownerPublicKey: string, recipient: string) {
 
   const receipt = await tx.wait();
 
-  const tokenId = receipt.events[0].args.tokenId;
+  const transferTopic = ethers.id('Transfer(address,address,uint256)');
+  const transferLog = receipt.logs?.find((log: { topics: string[] }) => log.topics[0] === transferTopic);
+  if (!transferLog) {
+    throw new Error('No Transfer event found in mint transaction');
+  }
+  const tokenId = Number(transferLog.topics[3]);
+
+  console.log("TOKEN ID: ", tokenId);
 
   return {
     tokenId,
