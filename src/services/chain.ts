@@ -53,8 +53,9 @@ const iNft = new Contract(
 // ─────────────────────────────────────────────────────────
 
 export const Outcome = {
-  Yes: 0,
-  No: 1,
+  None: 0,
+  Yes: 1,
+  No: 2,
 } as const;
 export type OutcomeValue = (typeof Outcome)[keyof typeof Outcome];
 
@@ -91,22 +92,60 @@ export interface OnChainUserPosition {
 // PredictionMarket — reads
 // ─────────────────────────────────────────────────────────
 
+/* 
+struct Market {
+    uint256 id; // Unique market ID
+    string streamUrl;
+    string question; // Market question
+    uint256 resolutionTime; // Betting end time (unix timestamp)
+    MarketState state; // Current market state
+    Outcome winningOutcome; // Winning outcome (if resolved)
+    uint256 yesPool; // Total YES pool amount
+    uint256 noPool; // Total NO pool amount
+    uint256 creationFee; // Fee paid on creation
+    address creator; // Market creator address
+    uint256 createdAt; // Creation timestamp
+    ConfigSnapshot configSnapshot; // Config snapshot at creation
+}
+*/
 export async function getMarket(marketId: bigint): Promise<OnChainMarket> {
   const m = await predictionMarketRead.getMarket(marketId);
-  return {
-    marketId: BigInt(m.marketId),
-    streamUrl: m.streamUrl as string,
-    question: m.question as string,
-    creator: m.creator as string,
-    yesAmount: BigInt(m.yesAmount),
-    noAmount: BigInt(m.noAmount),
-    totalAmount: BigInt(m.totalAmount),
-    feeAmount: BigInt(m.feeAmount),
-    resolved: Boolean(m.resolved),
-    cancelled: Boolean(m.cancelled),
-    winningOutcome: Number(m.winningOutcome) as OutcomeValue,
-    createdAt: BigInt(m.createdAt),
-  };
+  console.log("M: ", m)
+  
+  // Destructure the tuple according to the Market struct
+const [
+  id,
+  streamUrl,
+  question,
+  resolutionTime,
+  state,
+  winningOutcome,
+  yesPool,
+  noPool,
+  creationFee,
+  creator,
+  createdAt,
+  configSnapshot
+] = m;
+
+// configSnapshot is [feeRecipient, feeBasisPoints]
+const [feeRecipient, feeBasisPoints] = configSnapshot;
+
+return {
+  marketId: id,
+  streamUrl: streamUrl as string,
+  question: question as string,
+  winningOutcome: Number(winningOutcome) == 1 ? Outcome.Yes : (Number(winningOutcome) == 2 ? Outcome.No : Outcome.None),
+  yesAmount: yesPool,
+  noAmount: noPool,
+  totalAmount: yesPool + noPool,
+  feeAmount: creationFee,
+  creator: creator as string,
+  createdAt: createdAt,
+  // Computed properties for backward compatibility
+  resolved: Number(state) == 1,
+  cancelled: Number(state) == 2,
+};
 }
 
 export async function getUserPosition(
@@ -153,6 +192,10 @@ export async function createMarketOnChain(opts: {
   question: string;
   feeAmount: bigint;
 }): Promise<CreateMarketResult> {
+  const MARKET_CREATED_EVENT_SIG = ethers.id(
+    'MarketCreated(uint256,string,uint256,address,uint256)'
+  );
+
   const tx = await predictionMarketWrite.createMarket(
     opts.streamUrl,
     opts.question,
@@ -160,19 +203,14 @@ export async function createMarketOnChain(opts: {
   );
   const receipt: TransactionReceipt = await tx.wait(1);
 
-  // Parse MarketCreated event to get the on-chain marketId
-  const iface = new ethers.Interface(contracts.predictionMarket.abi);
   let onChainMarketId: bigint | null = null;
 
   for (const log of receipt.logs) {
-    try {
-      const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
-      if (parsed?.name === 'MarketCreated') {
-        onChainMarketId = BigInt(parsed.args.marketId);
-        break;
-      }
-    } catch {
-      // skip unparseable logs
+    // Check if this log is the MarketCreated event by matching the signature hash
+    if (log.topics[0] === MARKET_CREATED_EVENT_SIG) {
+      // topics[1] is the indexed marketId (uint256)
+      onChainMarketId = BigInt(log.topics[1]);
+      break;
     }
   }
 

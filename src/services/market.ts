@@ -1,4 +1,5 @@
 import { PoolClient } from 'pg';
+import { randomUUID } from 'crypto';
 import { db } from '../db/client';
 import {
   redis,
@@ -93,6 +94,75 @@ export async function createStream(
     streamUrl: body.stream_url,
     condition: body.condition,
   });
+
+  const endsAt = new Date(Date.now() + config.market.durationSeconds * 1000);
+
+  // 4. Persist to DB — pools start at 0 and grow as bets come in
+  const market = await db.transaction(async (client: PoolClient) => {
+    const { rows } = await client.query<MarketRow>(
+      `INSERT INTO markets
+         (on_chain_market_id, trio_job_id, title, condition, stream_url,
+          yes_pool_wei, no_pool_wei, created_by, is_agent_stream, ends_at, tx_hash)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       RETURNING *`,
+      [
+        onChainMarketId.toString(),
+        trioJob.job_id,
+        title,
+        body.condition,
+        body.stream_url,
+        '0',
+        '0',
+        createdBy,
+        isAgentStream,
+        endsAt,
+        txHash,
+      ],
+    );
+    return rows[0];
+  });
+
+  // 5. Store Redis mappings + expiry sentinel
+  await Promise.all([
+    setTrioJobMapping(trioJob.job_id, market.id),
+    setMarketExpiry(market.id, config.market.durationSeconds),
+    cacheMarketOdds(market.id, computeOddsSnapshot('0', '0')),
+  ]);
+
+  // 6. Subscribe to Redis keyspace expiry for the NO fallback path
+  subscribeMarketExpiry(market.id);
+
+  return market;
+}
+
+export async function createStreamMock(
+  body: CreateStreamBody,
+  createdBy: string,
+  isAgentStream: boolean,
+): Promise<MarketRow> {
+  const title =
+    body.title ??
+    (body.condition.length > 80
+      ? body.condition.slice(0, 77) + '...'
+      : body.condition);
+
+  // feeAmount: use provided value or default to 0 (contract handles fee logic)
+  const feeAmount = body.initial_liquidity_wei
+    ? BigInt(body.initial_liquidity_wei)
+    : BigInt(0);
+
+  // 2. Create market on the singleton PredictionMarket contract
+  const { onChainMarketId, txHash } = await chainService.createMarketOnChain({
+    streamUrl: body.stream_url,
+    question: body.condition,
+    feeAmount: BigInt(0),
+  });
+
+  const trioJob = {
+    job_id: randomUUID()
+  }
+
+  console.log("on chain market id: ", onChainMarketId.toString())
 
   const endsAt = new Date(Date.now() + config.market.durationSeconds * 1000);
 
